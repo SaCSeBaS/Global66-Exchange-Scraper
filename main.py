@@ -2,66 +2,78 @@ from appwrite.client import Client
 from appwrite.services.tables_db import TablesDB
 from appwrite.id import ID
 from datetime import datetime
-from dotenv import load_dotenv
 import requests
 import os
 
-load_dotenv()
+def main(context):
 
-APP_WRITE_URL = os.getenv('APP_WRITE_URL')
-APP_WRITE_PROJECT_ID = os.getenv('APP_WRITE_PROJECT_ID')
-APP_WRITE_KEY = os.getenv('APP_WRITE_KEY')
-APP_WRITE_DB_ID = os.getenv('APP_WRITE_DB_ID')
-APP_wRITE_DB_TABLE_ID = os.getenv('APP_wRITE_DB_TABLE_ID')
+    APP_WRITE_URL = os.environ.get('APP_WRITE_URL')
+    APP_WRITE_PROJECT_ID = os.environ.get('APP_WRITE_PROJECT_ID')
+    APP_WRITE_KEY = os.environ.get('APP_WRITE_KEY')
+    APP_WRITE_DB_ID = os.environ.get('APP_WRITE_DB_ID')
+    APP_WRITE_DB_TABLE_ID = os.environ.get('APP_WRITE_DB_TABLE_ID')
 
-url = "https://api.global66.com/quote/public"
-now = datetime.now()
-in_currency = "PEN"
-out_currency = "EUR"
-source = "https://www.global66.com/"
+    url = "https://api.global66.com/quote/public"
+    now = datetime.now()
+    in_currency = "PEN"
+    out_currency = "EUR"
+    source = "https://www.global66.com/"
 
-params = {
-    "originRoute": "227",
-    "destinationRoute": "36",
-    "amount": "100",
-    "way": "origin",
-    "paymentType": "WIRE_TRANSFER"
-}
+    params = {
+        "originRoute": "227",
+        "destinationRoute": "36",
+        "amount": "100",
+        "way": "origin",
+        "paymentType": "WIRE_TRANSFER"
+    }
 
-try:
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    data = response.json()
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        quote_data = data.get("quoteData", {})
+        rate = quote_data.get("originToDestinationRate")
 
-    quote_data = data.get("quoteData", {})
-    rate = quote_data.get("originToDestinationRate")
+        if rate:
+            client = Client()
+            client.set_endpoint(APP_WRITE_URL)
+            client.set_project(APP_WRITE_PROJECT_ID)
+            client.set_key(APP_WRITE_KEY)
 
-    if rate:
-        print(f"Extraction DateTime: {now.strftime("%m/%d/%Y %I:%M:%S %p")}")
-        print(f"Extracted Rate: {rate}")
-        client = Client()
-        client.set_endpoint(APP_WRITE_URL)
-        client.set_project(APP_WRITE_PROJECT_ID)
-        client.set_key(APP_WRITE_KEY)
+            tables_db = TablesDB(client)
 
-        tables_db = TablesDB(client)
+            result = tables_db.create_row(
+                database_id=APP_WRITE_DB_ID,
+                table_id=APP_WRITE_DB_TABLE_ID,
+                row_id=ID.unique(),
+                data={
+                    "date": now.isoformat(),
+                    "in_currency": in_currency,
+                    "out_currency": out_currency,
+                    "exchange_rate": float(rate),
+                    "source": source
+                },
+            )
 
-        result = tables_db.create_row(
-            database_id = APP_WRITE_DB_ID,
-            table_id = APP_wRITE_DB_TABLE_ID,
-            row_id = ID.unique(),
-            data = {
-                "date": now.isoformat(),
-                "in_currency": in_currency,
-                "out_currency": out_currency,
-                "exchange_rate": float(rate),
-                "source": source
-            },
-        )
-    else:
-        print("Rate not found in the response.")
+            return context.res.json({
+                "status": "success",
+                "rate": rate,
+                "timestamp": now.isoformat()
+            })
 
-except requests.exceptions.RequestException as e:
-    print(f"Network error: {e}")
-except Exception as e:
-    print(f"An error occurred: {e}")
+        else:
+            return context.res.json({
+                "status": "error",
+                "message": "Rate not found in the response."
+            })
+
+    except requests.exceptions.RequestException as e:
+        return context.res.json({
+            "status": "error",
+            "message": f"Network error: {e}"
+        })
+    except Exception as e:
+        return context.res.json({
+            "status": "error",
+            "message": f"An error occurred: {e}"
+        })
