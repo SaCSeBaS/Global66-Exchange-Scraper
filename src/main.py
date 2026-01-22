@@ -1,9 +1,10 @@
+from curl_cffi import requests
 from appwrite.client import Client
 from appwrite.services.tables_db import TablesDB
 from appwrite.id import ID
 from datetime import datetime
-import cloudscraper
 import os
+
 
 def main(context):
 
@@ -30,19 +31,17 @@ def main(context):
     try:
         context.log("Function started")
 
-        scraper = cloudscraper.create_scraper(
-            browser={
-                "browser": "chrome",
-                "platform": "windows",
-                "desktop": True
-            }
+        response = requests.get(
+            url,
+            params=params,
+            impersonate="chrome124",
+            timeout=30
         )
 
-        response = scraper.get(url, params=params, timeout=30)
+        # Debug if needed:
+        context.log(response.text[:500])
 
         data = response.json()
-
-        context.log(data)
 
         quote_data = data.get("quoteData", {})
         rate = quote_data.get("originToDestinationRate")
@@ -71,23 +70,19 @@ def main(context):
                 },
             )
 
-            context.log("Row inserted successfully")
-
             return context.res.json({
                 "status": "success",
                 "rate": rate,
                 "timestamp": now.isoformat()
             })
 
-        else:
-            context.log("status: error | message: Rate not found in response")
-            return context.res.json({
-                "status": "error",
-                "message": "Rate not found in the response."
-            })
+        return context.res.json({
+            "status": "error",
+            "message": "Rate not found"
+        })
 
     except Exception as e:
-        context.log(f"status: error | message: {str(e)}")
+        context.log(str(e))
         return context.res.json({
             "status": "error",
             "message": str(e)
