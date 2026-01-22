@@ -2,8 +2,11 @@ from appwrite.client import Client
 from appwrite.services.tables_db import TablesDB
 from appwrite.id import ID
 from datetime import datetime
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 import os
+import time
+
 
 def main(context):
 
@@ -13,29 +16,12 @@ def main(context):
     APP_WRITE_DB_ID = os.environ.get('APP_WRITE_DB_ID')
     APP_WRITE_DB_TABLE_ID = os.environ.get('APP_WRITE_DB_TABLE_ID')
 
-    url = "https://api.global66.com/quote/public"
     now = datetime.now()
     in_currency = "PEN"
     out_currency = "EUR"
     source = "https://www.global66.com/"
 
-    headers = {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "accept-encoding": "gzip, deflate, br, zstd",
-        "accept-language": "en-US,en;q=0.7",
-        "cookie": "cf_clearance=VU89Fv0KV1vMdqcCw0kYGO3aTfdlZnAVuuNuyYANWsk-1768848950-1.2.1.1-pIUfGDFSLfWY_.5gmSAke_F_42wpSf80FoQsP_fiFl02cHsE2QodG9iSUYiRunl1Z6U72MWCZFmeZMHZuehu1VwBmxqlY4QddISjikKRxeSAGxsXJODV0QflfT.hwtcS8NSSFC.UQK3meswSXey4gczB8twloswnWuivbyBNp4Q59pSH.OoUIYpByvvwxuF._HiQVldzc_oJy4AZQCsm5wggSZ7AxBU3xfohkWKuLN8",
-        "sec-ch-ua": '"Not(A:Brand";v="8", "Chromium";v="144", "Brave";v="144"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "document",
-        "sec-fetch-mode": "navigate",
-        "sec-fetch-site": "none",
-        "sec-fetch-user": "?1",
-        "sec-gpc": "1",
-        "upgrade-insecure-requests": "1",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
-    }
-
+    api_url = "https://api.global66.com/quote/public"
     params = {
         "originRoute": "227",
         "destinationRoute": "36",
@@ -47,9 +33,33 @@ def main(context):
     try:
         context.log("Function started")
 
-        response = requests.get(url, params=params, headers=headers, timeout=30)
-        response.raise_for_status()
-        data = response.json()
+        chrome_options = Options()
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=chrome_options)
+
+        driver.get("https://www.global66.com/")
+        time.sleep(5)
+
+        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        full_url = f"{api_url}?{query_string}"
+
+        script = f"""
+        return fetch("{full_url}", {{
+            method: "GET",
+            headers: {{
+                "accept": "application/json"
+            }}
+        }}).then(r => r.json());
+        """
+
+        data = driver.execute_script(script)
+
+        driver.quit()
+
         quote_data = data.get("quoteData", {})
         rate = quote_data.get("originToDestinationRate")
 
@@ -87,19 +97,12 @@ def main(context):
             })
 
         else:
-            context.log(f"status: error | message: Rate not found in the response.")
+            context.log("status: error | message: Rate not found in the response.")
             return context.res.json({
                 "status": "error",
                 "message": "Rate not found in the response."
             })
 
-    except requests.exceptions.RequestException as e:
-        context.log(f"status: error | message: Network error - {e}")
-        return context.res.json({
-            "status": "error",
-            "message": f"Network error: {e}"
-        })
-    
     except Exception as e:
         context.log(f"status: error | message: An error occurred - {e}")
         return context.res.json({
