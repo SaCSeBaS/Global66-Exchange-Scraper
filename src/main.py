@@ -19,6 +19,14 @@ def main(context):
     out_currency = "EUR"
     source = "https://www.global66.com/"
 
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.global66.com/",
+        "Origin": "https://www.global66.com"
+    }
+
+
     params = {
         "originRoute": "227",
         "destinationRoute": "36",
@@ -30,7 +38,7 @@ def main(context):
     try:
         context.log("Function started")
 
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, headers=headers, timeout=15)
         response.raise_for_status()
         data = response.json()
         quote_data = data.get("quoteData", {})
