@@ -20,12 +20,21 @@ def main(context):
     source = "https://www.global66.com/"
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.global66.com/",
-        "Origin": "https://www.global66.com"
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "en-US,en;q=0.7",
+        "cookie": "cf_clearance=VU89Fv0KV1vMdqcCw0kYGO3aTfdlZnAVuuNuyYANWsk-1768848950-1.2.1.1-pIUfGDFSLfWY_.5gmSAke_F_42wpSf80FoQsP_fiFl02cHsE2QodG9iSUYiRunl1Z6U72MWCZFmeZMHZuehu1VwBmxqlY4QddISjikKRxeSAGxsXJODV0QflfT.hwtcS8NSSFC.UQK3meswSXey4gczB8twloswnWuivbyBNp4Q59pSH.OoUIYpByvvwxuF._HiQVldzc_oJy4AZQCsm5wggSZ7AxBU3xfohkWKuLN8",
+        "sec-ch-ua": '"Not(A:Brand";v="8", "Chromium";v="144", "Brave";v="144"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "none",
+        "sec-fetch-user": "?1",
+        "sec-gpc": "1",
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
     }
-
 
     params = {
         "originRoute": "227",
@@ -38,7 +47,7 @@ def main(context):
     try:
         context.log("Function started")
 
-        response = requests.get(url, params=params, headers=headers, timeout=15)
+        response = requests.get(url, params=params, headers=headers, timeout=30)
         response.raise_for_status()
         data = response.json()
         quote_data = data.get("quoteData", {})
