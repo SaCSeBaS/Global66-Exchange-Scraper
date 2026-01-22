@@ -2,7 +2,7 @@ from appwrite.client import Client
 from appwrite.services.tables_db import TablesDB
 from appwrite.id import ID
 from datetime import datetime
-from playwright.sync_api import sync_playwright
+import cloudscraper
 import os
 
 def main(context):
@@ -10,15 +10,15 @@ def main(context):
     APP_WRITE_URL = os.environ.get('APP_WRITE_URL')
     APP_WRITE_PROJECT_ID = os.environ.get('APP_WRITE_PROJECT_ID')
     APP_WRITE_KEY = os.environ.get('APP_WRITE_KEY')
-    APP_WRITE_DB_ID = os.environ.get('APP_WRITE_DB_TABLE_ID')
+    APP_WRITE_DB_ID = os.environ.get('APP_WRITE_DB_ID')
     APP_WRITE_DB_TABLE_ID = os.environ.get('APP_WRITE_DB_TABLE_ID')
 
+    url = "https://api.global66.com/quote/public"
     now = datetime.now()
     in_currency = "PEN"
     out_currency = "EUR"
     source = "https://www.global66.com/"
 
-    api_url = "https://api.global66.com/quote/public"
     params = {
         "originRoute": "227",
         "destinationRoute": "36",
@@ -30,22 +30,17 @@ def main(context):
     try:
         context.log("Function started")
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+        scraper = cloudscraper.create_scraper(
+            browser={
+                "browser": "chrome",
+                "platform": "windows",
+                "desktop": True
+            }
+        )
 
-            page.goto("https://www.global66.com/", timeout=60000)
-            page.wait_for_timeout(5000)
+        response = scraper.get(url, params=params, timeout=30)
 
-            query_string = "&".join([f"{k}={v}" for k, v in params.items()])
-            full_url = f"{api_url}?{query_string}"
-
-            data = page.evaluate(f"""
-                () => fetch("{full_url}")
-                      .then(r => r.json())
-            """)
-
-            browser.close()
+        data = response.json()
 
         quote_data = data.get("quoteData", {})
         rate = quote_data.get("originToDestinationRate")
@@ -75,22 +70,22 @@ def main(context):
             )
 
             context.log("Row inserted successfully")
-            context.log(f"status: success | rate: {rate}")
+
             return context.res.json({
                 "status": "success",
                 "rate": rate,
                 "timestamp": now.isoformat()
             })
-        
-        context.log("status: error | message: Rate not found in the response.")
-        return context.res.json({
-            "status": "error",
-            "message": "Rate not found"
-        })
+
+        else:
+            context.log("status: error | message: Rate not found in response")
+            return context.res.json({
+                "status": "error",
+                "message": "Rate not found in the response."
+            })
 
     except Exception as e:
-
-        context.log(str(e))
+        context.log(f"status: error | message: {str(e)}")
         return context.res.json({
             "status": "error",
             "message": str(e)
