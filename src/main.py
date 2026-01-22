@@ -28,6 +28,8 @@ def main(context):
     }
 
     try:
+        context.log("Function started")
+
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
@@ -35,6 +37,9 @@ def main(context):
         rate = quote_data.get("originToDestinationRate")
 
         if rate:
+            context.log(f"Extraction DateTime: {now.isoformat()}")
+            context.log(f"Extracted Rate: {rate}")
+
             client = Client()
             client.set_endpoint(APP_WRITE_URL)
             client.set_project(APP_WRITE_PROJECT_ID)
@@ -55,6 +60,9 @@ def main(context):
                 },
             )
 
+            context.log("Row inserted successfully")
+            context.log(f"status: success | rate: {rate}")
+
             return context.res.json({
                 "status": "success",
                 "rate": rate,
@@ -62,17 +70,21 @@ def main(context):
             })
 
         else:
+            context.log(f"status: error | message: Rate not found in the response.")
             return context.res.json({
                 "status": "error",
                 "message": "Rate not found in the response."
             })
 
     except requests.exceptions.RequestException as e:
+        context.log(f"status: error | message: Network error - {e}")
         return context.res.json({
             "status": "error",
             "message": f"Network error: {e}"
         })
+    
     except Exception as e:
+        context.log(f"status: error | message: An error occurred - {e}")
         return context.res.json({
             "status": "error",
             "message": f"An error occurred: {e}"
