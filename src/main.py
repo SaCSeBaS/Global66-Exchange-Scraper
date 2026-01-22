@@ -2,18 +2,15 @@ from appwrite.client import Client
 from appwrite.services.tables_db import TablesDB
 from appwrite.id import ID
 from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 import os
-import time
-
+from playwright.sync_api import sync_playwright
 
 def main(context):
 
     APP_WRITE_URL = os.environ.get('APP_WRITE_URL')
     APP_WRITE_PROJECT_ID = os.environ.get('APP_WRITE_PROJECT_ID')
     APP_WRITE_KEY = os.environ.get('APP_WRITE_KEY')
-    APP_WRITE_DB_ID = os.environ.get('APP_WRITE_DB_ID')
+    APP_WRITE_DB_ID = os.environ.get('APP_WRITE_DB_TABLE_ID')
     APP_WRITE_DB_TABLE_ID = os.environ.get('APP_WRITE_DB_TABLE_ID')
 
     now = datetime.now()
@@ -33,32 +30,22 @@ def main(context):
     try:
         context.log("Function started")
 
-        chrome_options = Options()
-        chrome_options.add_argument("--headless=new")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
 
-        driver = webdriver.Chrome(options=chrome_options)
+            page.goto("https://www.global66.com/", timeout=60000)
+            page.wait_for_timeout(5000)
 
-        driver.get("https://www.global66.com/")
-        time.sleep(5)
+            query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+            full_url = f"{api_url}?{query_string}"
 
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
-        full_url = f"{api_url}?{query_string}"
+            data = page.evaluate(f"""
+                () => fetch("{full_url}")
+                      .then(r => r.json())
+            """)
 
-        script = f"""
-        return fetch("{full_url}", {{
-            method: "GET",
-            headers: {{
-                "accept": "application/json"
-            }}
-        }}).then(r => r.json());
-        """
-
-        data = driver.execute_script(script)
-
-        driver.quit()
+            browser.close()
 
         quote_data = data.get("quoteData", {})
         rate = quote_data.get("originToDestinationRate")
@@ -74,7 +61,7 @@ def main(context):
 
             tables_db = TablesDB(client)
 
-            result = tables_db.create_row(
+            tables_db.create_row(
                 database_id=APP_WRITE_DB_ID,
                 table_id=APP_WRITE_DB_TABLE_ID,
                 row_id=ID.unique(),
@@ -89,23 +76,22 @@ def main(context):
 
             context.log("Row inserted successfully")
             context.log(f"status: success | rate: {rate}")
-
             return context.res.json({
                 "status": "success",
                 "rate": rate,
                 "timestamp": now.isoformat()
             })
-
-        else:
-            context.log("status: error | message: Rate not found in the response.")
-            return context.res.json({
-                "status": "error",
-                "message": "Rate not found in the response."
-            })
-
-    except Exception as e:
-        context.log(f"status: error | message: An error occurred - {e}")
+        
+        context.log("status: error | message: Rate not found in the response.")
         return context.res.json({
             "status": "error",
-            "message": f"An error occurred: {e}"
+            "message": "Rate not found"
+        })
+
+    except Exception as e:
+        
+        context.log(str(e))
+        return context.res.json({
+            "status": "error",
+            "message": str(e)
         })
