@@ -42,6 +42,8 @@ def main(context):
 
         data = response.json()
 
+        context.log(data)
+
         quote_data = data.get("quoteData", {})
         rate = quote_data.get("originToDestinationRate")
 
