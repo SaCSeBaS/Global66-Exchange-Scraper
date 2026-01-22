@@ -2,8 +2,8 @@ from appwrite.client import Client
 from appwrite.services.tables_db import TablesDB
 from appwrite.id import ID
 from datetime import datetime
-import os
 from playwright.sync_api import sync_playwright
+import os
 
 def main(context):
 
@@ -89,7 +89,7 @@ def main(context):
         })
 
     except Exception as e:
-        
+
         context.log(str(e))
         return context.res.json({
             "status": "error",
