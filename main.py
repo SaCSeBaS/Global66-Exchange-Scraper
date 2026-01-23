@@ -47,7 +47,7 @@ def main(context):
     try:
         context.log("Function started")
 
-        response = requests.get(url, params=params, headers=headers, timeout=30)
+        response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
         data = response.json()
         quote_data = data.get("quoteData", {})
